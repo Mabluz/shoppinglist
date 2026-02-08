@@ -4,7 +4,7 @@ import { useLoaderData, Form, Link, redirect } from '@remix-run/react'
 import ShoppingList from '~/components/ShoppingList'
 import { verifySession } from '~/server/auth'
 import { db } from '~/server/db'
-import { items } from '~/server/db/schema'
+import { items, stores } from '~/server/db/schema'
 import { eq, desc, sql } from 'drizzle-orm'
 
 export const meta: MetaFunction = () => {
@@ -23,17 +23,26 @@ export const loader: LoaderFunction = async ({ request }) => {
     return redirect('/login')
   }
 
-  // Fetch all items (localStorage will sync later, but load initial state)
-  const allItems = await db.select().from(items).orderBy(desc(items.createdAt))
+  // Fetch all items with store information
+  const allItems = await db
+    .select({
+      id: items.id,
+      content: items.content,
+      storeId: items.storeId,
+      storeName: stores.name,
+      isCompleted: items.isCompleted,
+      completedAt: items.completedAt,
+      createdAt: items.createdAt,
+      updatedAt: items.updatedAt,
+    })
+    .from(items)
+    .leftJoin(stores, eq(items.storeId, stores.id))
+    .orderBy(desc(items.createdAt))
 
-  // Extract unique stores
-  const stores = Array.from(new Set(
-    allItems
-      .map(item => item.store)
-      .filter((store): store is string => !!store)
-  ))
+  // Fetch all stores
+  const allStores = await db.select().from(stores).orderBy(stores.name)
 
-  return json({ items: allItems, stores })
+  return json({ items: allItems, stores: allStores })
 }
 
 export default function Index() {

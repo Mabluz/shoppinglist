@@ -1,7 +1,7 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node'
 import { json } from '@remix-run/node'
 import { db } from '~/server/db'
-import { items, type Item } from '~/server/db/schema'
+import { items, stores } from '~/server/db/schema'
 import { verifySession } from '~/server/auth'
 import { eq } from 'drizzle-orm'
 
@@ -28,7 +28,7 @@ export const action: ActionFunction = async ({ request, params }) => {
     case 'PATCH': {
       const body = await request.json()
 
-      const updated: Partial<Item> = {
+      const updated: any = {
         updatedAt: new Date(),
       }
 
@@ -44,12 +44,28 @@ export const action: ActionFunction = async ({ request, params }) => {
         updated.completedAt = body.completedAt ? new Date(body.completedAt) : null
       }
 
-      if (body.store !== undefined) {
-        updated.store = body.store?.trim() || null
+      if (body.storeId !== undefined) {
+        updated.storeId = body.storeId || null
       }
 
       await db.update(items).set(updated).where(eq(items.id, id))
-      const result = await db.select().from(items).where(eq(items.id, id)).limit(1)
+
+      const result = await db
+        .select({
+          id: items.id,
+          content: items.content,
+          storeId: items.storeId,
+          storeName: stores.name,
+          isCompleted: items.isCompleted,
+          completedAt: items.completedAt,
+          createdAt: items.createdAt,
+          updatedAt: items.updatedAt,
+        })
+        .from(items)
+        .leftJoin(stores, eq(items.storeId, stores.id))
+        .where(eq(items.id, id))
+        .limit(1)
+
       return json(result[0])
     }
 

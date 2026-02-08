@@ -1,16 +1,30 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node'
 import { json } from '@remix-run/node'
 import { db } from '~/server/db'
-import { items, type Item } from '~/server/db/schema'
+import { items, stores } from '~/server/db/schema'
 import { verifySession } from '~/server/auth'
-import { desc } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 
 export const loader: LoaderFunction = async ({ request }) => {
   const cookieHeader = request.headers.get('Cookie')
   const isValid = await verifySession(cookieHeader)
   if (!isValid) throw new Response('Unauthorized', { status: 401 })
 
-  const allItems = await db.select().from(items).orderBy(desc(items.createdAt))
+  const allItems = await db
+    .select({
+      id: items.id,
+      content: items.content,
+      storeId: items.storeId,
+      storeName: stores.name,
+      isCompleted: items.isCompleted,
+      completedAt: items.completedAt,
+      createdAt: items.createdAt,
+      updatedAt: items.updatedAt,
+    })
+    .from(items)
+    .leftJoin(stores, eq(items.storeId, stores.id))
+    .orderBy(desc(items.createdAt))
+
   return json(allItems)
 }
 
@@ -21,10 +35,10 @@ export const action: ActionFunction = async ({ request }) => {
 
   if (request.method === 'POST') {
     const body = await request.json()
-    const newItem: Item = {
+    const newItem = {
       id: body.id || crypto.randomUUID(),
       content: body.content.trim(),
-      store: body.store?.trim() || null,
+      storeId: body.storeId || null,
       isCompleted: body.isCompleted || false,
       completedAt: body.completedAt ? new Date(body.completedAt) : null,
       createdAt: body.createdAt ? new Date(body.createdAt) : new Date(),

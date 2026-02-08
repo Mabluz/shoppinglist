@@ -1,24 +1,43 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Item } from '~/server/db/schema'
+import { Link } from '@remix-run/react'
+import type { Store } from '~/server/db/schema'
+
+interface ItemWithStore {
+  id: string
+  content: string
+  storeId: string | null
+  storeName: string | null
+  isCompleted: boolean
+  completedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
 
 interface ShoppingListProps {
-  initialItems: Item[]
-  stores: string[]
+  initialItems: ItemWithStore[]
+  stores: Store[]
+}
+
+interface ItemHistory {
+  content: string
+  count: number
+  lastUsed: string
 }
 
 export default function ShoppingList({ initialItems, stores }: ShoppingListProps) {
-  const [items, setItems] = useState<Item[]>(initialItems)
+  const [items, setItems] = useState<ItemWithStore[]>(initialItems)
   const [newItemContent, setNewItemContent] = useState('')
-  const [selectedStore, setSelectedStore] = useState('')
+  const [newItemStoreId, setNewItemStoreId] = useState('')
+  const [filterStoreId, setFilterStoreId] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'single'; id: string } | { type: 'clear' } | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editStoreIdValue, setEditStoreIdValue] = useState('')
+  const [itemHistory, setItemHistory] = useState<ItemHistory[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
-
-  // Get all distinct item contents for suggestions
-  const allItemContents = Array.from(new Set(items.map(item => item.content)))
 
   // Save to localStorage whenever items change
   useEffect(() => {
@@ -42,13 +61,74 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     }
   }, [])
 
-  // Get suggestions based on input
+  // Load item history from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedHistory = localStorage.getItem('shoppinglist-history')
+      if (savedHistory) {
+        const parsed = JSON.parse(savedHistory)
+        setItemHistory(parsed)
+      } else {
+        // Initialize history from current items
+        const history = items.map(item => ({
+          content: item.content,
+          count: 1,
+          lastUsed: new Date(item.createdAt).toISOString()
+        }))
+        setItemHistory(history)
+      }
+    } catch (error) {
+      console.error('Failed to load history from localStorage:', error)
+    }
+  }, [])
+
+  // Save item history to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('shoppinglist-history', JSON.stringify(itemHistory))
+    } catch (error) {
+      console.error('Failed to save history to localStorage:', error)
+    }
+  }, [itemHistory])
+
+  // When filter changes, default the add-item store selector to the filtered store
+  useEffect(() => {
+    if (filterStoreId) {
+      setNewItemStoreId(filterStoreId)
+    }
+  }, [filterStoreId])
+
+  // Add item to history or update count
+  const addToHistory = useCallback((content: string) => {
+    setItemHistory(prev => {
+      const existing = prev.find(h => h.content.toLowerCase() === content.toLowerCase())
+      if (existing) {
+        return prev.map(h =>
+          h.content.toLowerCase() === content.toLowerCase()
+            ? { ...h, count: h.count + 1, lastUsed: new Date().toISOString() }
+            : h
+        )
+      } else {
+        return [...prev, { content, count: 1, lastUsed: new Date().toISOString() }]
+      }
+    })
+  }, [])
+
+  // Get suggestions based on input from history (sorted by frequency and recency)
   const getSuggestions = useCallback((value: string) => {
     if (!value.trim()) return []
-    return allItemContents
-      .filter(item => item.toLowerCase().includes(value.toLowerCase()))
+    return itemHistory
+      .filter(h => h.content.toLowerCase().includes(value.toLowerCase()))
+      .sort((a, b) => {
+        // Sort by count (descending), then by lastUsed (most recent first)
+        if (b.count !== a.count) {
+          return b.count - a.count
+        }
+        return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
+      })
+      .map(h => h.content)
       .slice(0, 5) // Limit to 5 suggestions
-  }, [allItemContents])
+  }, [itemHistory])
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,10 +157,12 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
   const handleAddItem = async () => {
     if (!newItemContent.trim()) return
 
-    const newItem: Item = {
+    const selectedStore = stores.find(s => s.id === newItemStoreId)
+    const newItem: ItemWithStore = {
       id: crypto.randomUUID(),
       content: newItemContent.trim(),
-      store: selectedStore.trim() || null,
+      storeId: newItemStoreId || null,
+      storeName: selectedStore?.name || null,
       isCompleted: false,
       completedAt: null,
       createdAt: new Date(),
@@ -88,7 +170,12 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     }
 
     setItems(prev => [newItem, ...prev])
+
+    // Add to history for future autocomplete
+    addToHistory(newItemContent.trim())
+
     setNewItemContent('')
+    setNewItemStoreId('')
     setSearchTerm('')
     setShowSuggestions(false)
 
@@ -96,7 +183,15 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     await fetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newItem),
+      body: JSON.stringify({
+        id: newItem.id,
+        content: newItem.content,
+        storeId: newItem.storeId,
+        isCompleted: newItem.isCompleted,
+        completedAt: newItem.completedAt,
+        createdAt: newItem.createdAt,
+        updatedAt: newItem.updatedAt,
+      }),
     }).catch(console.error)
   }
 
@@ -109,7 +204,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
   }
 
   // Toggle item completion (strikethrough)
-  const toggleComplete = async (item: Item) => {
+  const toggleComplete = async (item: ItemWithStore) => {
     const updated = { ...item, isCompleted: !item.isCompleted, completedAt: item.isCompleted ? null : new Date() }
 
     setItems(prev => prev.map(i => i.id === item.id ? updated : i))
@@ -117,18 +212,62 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     await fetch(`/api/items/${item.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updated),
+      body: JSON.stringify({
+        isCompleted: updated.isCompleted,
+        completedAt: updated.completedAt,
+      }),
     }).catch(console.error)
   }
 
-  // Request delete (show modal)
-  const requestDelete = (item: Item) => {
-    setDeleteTarget({ type: 'single', id: item.id })
+  // Handle delete button click
+  const handleDeleteClick = (item: ItemWithStore) => {
+    if (item.isCompleted) {
+      // If already completed, show delete confirmation
+      setDeleteTarget({ type: 'single', id: item.id })
+      setShowDeleteModal(true)
+    } else {
+      // If not completed, mark as completed first
+      toggleComplete(item)
+    }
   }
 
   // Request clear all completed
   const requestClearCompleted = () => {
     setDeleteTarget({ type: 'clear' })
+    setShowDeleteModal(true)
+  }
+
+  // Start editing item store
+  const startEditingStore = (item: ItemWithStore) => {
+    setEditingItemId(item.id)
+    setEditStoreIdValue(item.storeId || '')
+  }
+
+  // Save edited store
+  const saveEditedStore = async (item: ItemWithStore) => {
+    const selectedStore = stores.find(s => s.id === editStoreIdValue)
+    const updated = {
+      ...item,
+      storeId: editStoreIdValue || null,
+      storeName: selectedStore?.name || null,
+      updatedAt: new Date()
+    }
+
+    setItems(prev => prev.map(i => i.id === item.id ? updated : i))
+    setEditingItemId(null)
+    setEditStoreIdValue('')
+
+    await fetch(`/api/items/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeId: updated.storeId }),
+    }).catch(console.error)
+  }
+
+  // Cancel editing store
+  const cancelEditingStore = () => {
+    setEditingItemId(null)
+    setEditStoreIdValue('')
   }
 
   // Confirm delete
@@ -160,8 +299,8 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
   }
 
   // Filter items by store if selected
-  const displayedItems = selectedStore
-    ? items.filter(item => item.store === selectedStore)
+  const displayedItems = filterStoreId
+    ? items.filter(item => item.storeId === filterStoreId)
     : items
 
   // Sort: incomplete first, then by creation date
@@ -178,23 +317,26 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     <div className="container">
       {/* Header */}
       <header className="header">
-        <h1>Shopping List</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1>Shopping List</h1>
+          <Link to="/stores" className="manage-stores-link">Butikker</Link>
+        </div>
         <p className="header-subtitle">Add items quickly, check them off</p>
       </header>
 
       <div className="content">
-        {/* Store selector */}
+        {/* Store filter */}
         <div className="store-section">
-          <label className="store-label" htmlFor="store">Butikk (valgfritt)</label>
+          <label className="store-label" htmlFor="filter-store">Filter etter butikk</label>
           <select
-            id="store"
+            id="filter-store"
             className="store-input"
-            value={selectedStore}
-            onChange={(e) => setSelectedStore(e.target.value)}
+            value={filterStoreId}
+            onChange={(e) => setFilterStoreId(e.target.value)}
           >
             <option value="">Alle butikker</option>
             {stores.map(store => (
-              <option key={store} value={store}>{store}</option>
+              <option key={store.id} value={store.id}>{store.name}</option>
             ))}
           </select>
         </div>
@@ -214,6 +356,16 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               autoComplete="off"
             />
+            <select
+              className="add-item-input store-input-inline"
+              value={newItemStoreId}
+              onChange={(e) => setNewItemStoreId(e.target.value)}
+            >
+              <option value="">Ingen butikk</option>
+              {stores.map(store => (
+                <option key={store.id} value={store.id}>{store.name}</option>
+              ))}
+            </select>
             <button className="add-item-button" onClick={handleAddItem} disabled={!newItemContent.trim()}>
               Legg til
             </button>
@@ -254,13 +406,35 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
                     >
                       {item.content}
                     </span>
-                    {item.store && (
-                      <span className="item-store">{item.store}</span>
+                    {editingItemId === item.id ? (
+                      <div className="edit-store-form">
+                        <select
+                          className="edit-store-input"
+                          value={editStoreIdValue}
+                          onChange={(e) => setEditStoreIdValue(e.target.value)}
+                          autoFocus
+                        >
+                          <option value="">Ingen butikk</option>
+                          {stores.map(store => (
+                            <option key={store.id} value={store.id}>{store.name}</option>
+                          ))}
+                        </select>
+                        <button className="save-store-button" onClick={() => saveEditedStore(item)}>✓</button>
+                        <button className="cancel-store-button" onClick={cancelEditingStore}>✕</button>
+                      </div>
+                    ) : (
+                      <span
+                        className="item-store"
+                        onClick={() => startEditingStore(item)}
+                        title="Klikk for å endre butikk"
+                      >
+                        {item.storeName || '+ Legg til butikk'}
+                      </span>
                     )}
                   </div>
                   <button
                     className="delete-button"
-                    onClick={() => requestDelete(item)}
+                    onClick={() => handleDeleteClick(item)}
                     title={item.isCompleted ? 'Slett' : 'Ferdig?'}
                   >
                     {item.isCompleted ? '🗑' : '✓'}
@@ -273,7 +447,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
             {completedCount > 0 && (
               <div className="actions">
                 <button className="clear-completed-button" onClick={requestClearCompleted}>
-                  Fjern {completedCount} {completedCount === 1 ? 'faredig' : 'færdige'} vare
+                  Fjern {completedCount} {completedCount === 1 ? 'ferdig' : 'ferdige'} vare
                 </button>
               </div>
             )}
