@@ -9,7 +9,7 @@
     "start": "remix-serve build/index.js",
     "lint": "eslint --ignore-path .gitignore --cache --fix",
     "typecheck": "tsc",
-    "db:init": "tsx server/db/init.ts",
+    "db:init": "tsx app/server/db/init.ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
