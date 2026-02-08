@@ -41,6 +41,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
   const [lastSync, setLastSync] = useState<Date | null>(null)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Monitor online/offline status
@@ -56,6 +57,16 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
+  }, [])
+
+  // Monitor scroll to hide subtitle when scrolled
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   // Update last sync time whenever items change
@@ -94,7 +105,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     const { outcome } = await deferredPrompt.userChoice
 
     if (outcome === 'accepted') {
-      console.log('✅ User accepted PWA install')
+      // PWA install accepted
     }
 
     setDeferredPrompt(null)
@@ -212,7 +223,11 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     setItems(prev => [newItem, ...prev])
 
     setNewItemContent('')
-    setNewItemStoreId(filterStoreId)
+    // Only reset store selection if there's an active filter
+    // Otherwise, remember the last selected store for convenience
+    if (filterStoreId) {
+      setNewItemStoreId(filterStoreId)
+    }
     setSearchTerm('')
     setShowSuggestions(false)
 
@@ -364,7 +379,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
             <Link to="/stores" className="manage-stores-link">Butikker</Link>
           </div>
         </div>
-        <p className="header-subtitle">Legg til ting fort, for så å sjekke de av</p>
+        {!isScrolled && <p className="header-subtitle">Legg til ting fort, for så å sjekke de av</p>}
       </header>
 
       {/* Offline/Online Status Banner */}
@@ -426,6 +441,8 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
             <input
               ref={inputRef}
               type="text"
+              id="new-item-content"
+              name="newItemContent"
               className="add-item-input"
               placeholder="Legg til ny vare..."
               value={newItemContent}
@@ -436,6 +453,8 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
               autoComplete="off"
             />
             <select
+              id="new-item-store"
+              name="newItemStore"
               className="add-item-input store-input-inline"
               value={newItemStoreId}
               onChange={(e) => setNewItemStoreId(e.target.value)}

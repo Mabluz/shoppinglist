@@ -12,7 +12,6 @@ import styles from './styles/app.css?url'
 export const meta: MetaFunction = () => [
   { title: 'Handleliste' },
   { name: 'description', content: 'Enkel handleliste for telefonen' },
-  { viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
   { name: 'theme-color', content: '#0070f3' },
   { name: 'apple-mobile-web-app-capable', content: 'yes' },
   { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
@@ -33,6 +32,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <html lang="no">
       <head>
         <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <Meta />
         <Links />
       </head>
