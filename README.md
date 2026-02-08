@@ -93,3 +93,4 @@ The app is designed mobile-first with:
 - Simple interface optimized for quick item entry
 - Offline-capable with localStorage sync
 - Works reliably with poor connectivity
+# shoppinglist
