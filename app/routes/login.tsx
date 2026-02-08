@@ -1,6 +1,6 @@
 import type { MetaFunction, ActionFunction } from '@remix-run/node'
 import { json, redirect } from '@remix-run/node'
-import { Form, useActionData, useTransition } from '@remix-run/react'
+import { Form, useActionData, useNavigation } from '@remix-run/react'
 import { verifyPassword, createSession, sessionCookie } from '~/server/auth'
 
 export const meta: MetaFunction = () => {
@@ -36,8 +36,8 @@ export const action: ActionFunction = async ({ request }) => {
 
 export default function Login() {
   const actionData = useActionData<typeof action>()
-  const transition = useTransition()
-  const isSubmitting = transition.state === 'submitting'
+  const navigation = useNavigation()
+  const isSubmitting = navigation.state === 'submitting'
 
   return (
     <div className="password-container">

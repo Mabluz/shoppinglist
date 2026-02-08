@@ -1,5 +1,5 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node'
-import { json, BadRequest } from '@remix-run/node'
+import { json } from '@remix-run/node'
 import { useLoaderData, useActionData, Form } from '@remix-run/react'
 import { db } from '~/server/db'
 import { items, type Item } from '~/server/db/schema'
@@ -25,7 +25,7 @@ export const action: ActionFunction = async ({ request }) => {
   const store = formData.get('store') as string | null
 
   if (!content?.trim()) {
-    throw new BadRequest('Content is required')
+    throw new Response('Content is required', { status: 400 })
   }
 
   const newItem: Item = {
@@ -34,8 +34,8 @@ export const action: ActionFunction = async ({ request }) => {
     store: store?.trim() || null,
     isCompleted: false,
     completedAt: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   }
 
   await db.insert(items).values(newItem)

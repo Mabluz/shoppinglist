@@ -8,7 +8,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from '@remix-run/react'
-import styles from './styles/app.css'
+import styles from './styles/app.css?url'
 
 export const meta: MetaFunction = () => [
   { title: 'Shopping List' },

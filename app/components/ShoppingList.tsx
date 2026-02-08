@@ -83,8 +83,8 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
       store: selectedStore.trim() || null,
       isCompleted: false,
       completedAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
     setItems(prev => [newItem, ...prev])
@@ -110,7 +110,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
 
   // Toggle item completion (strikethrough)
   const toggleComplete = async (item: Item) => {
-    const updated = { ...item, isCompleted: !item.isCompleted, completedAt: item.isCompleted ? null : new Date().toISOString() }
+    const updated = { ...item, isCompleted: !item.isCompleted, completedAt: item.isCompleted ? null : new Date() }
 
     setItems(prev => prev.map(i => i.id === item.id ? updated : i))
 

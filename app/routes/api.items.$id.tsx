@@ -1,5 +1,5 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node'
-import { json, BadRequest, NotFound } from '@remix-run/node'
+import { json } from '@remix-run/node'
 import { db } from '~/server/db'
 import { items, type Item } from '~/server/db/schema'
 import { verifySession } from '~/server/auth'
@@ -19,32 +19,33 @@ export const action: ActionFunction = async ({ request, params }) => {
   if (!isValid) throw new Response('Unauthorized', { status: 401 })
 
   const id = params.id
-  if (!id) throw new NotFound('Item ID required')
+  if (!id) throw new Response('Item ID required', { status: 404 })
 
   const existingItem = await db.select().from(items).where(eq(items.id, id)).limit(1)
-  if (!existingItem.length) throw new NotFound('Item not found')
+  if (!existingItem.length) throw new Response('Item not found', { status: 404 })
 
   switch (request.method) {
     case 'PATCH': {
-      const formData = await request.formData()
-      const content = formData.get('content') as string | null
-      const isCompleted = formData.get('isCompleted') as string | null
-      const completedAt = formData.get('completedAt') as string | null
+      const body = await request.json()
 
       const updated: Partial<Item> = {
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       }
 
-      if (content !== null) {
-        updated.content = content.trim()
+      if (body.content !== undefined) {
+        updated.content = body.content.trim()
       }
 
-      if (isCompleted !== null) {
-        updated.isCompleted = isCompleted === 'true'
+      if (body.isCompleted !== undefined) {
+        updated.isCompleted = body.isCompleted
       }
 
-      if (completedAt !== null) {
-        updated.completedAt = completedAt || null
+      if (body.completedAt !== undefined) {
+        updated.completedAt = body.completedAt ? new Date(body.completedAt) : null
+      }
+
+      if (body.store !== undefined) {
+        updated.store = body.store?.trim() || null
       }
 
       await db.update(items).set(updated).where(eq(items.id, id))

@@ -1,4 +1,4 @@
-import { createCookie } from 'remix'
+import { createCookie } from '@remix-run/node'
 import { randomUUID } from 'crypto'
 
 const sessionCookie = createCookie('shoppinglist_session', {

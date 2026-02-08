@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
-import { remix } from '@remix-run/dev'
+import { vitePlugin as remix } from '@remix-run/dev'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
