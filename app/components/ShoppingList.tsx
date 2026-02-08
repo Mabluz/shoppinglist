@@ -42,6 +42,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [completingItemId, setCompletingItemId] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Monitor online/offline status
@@ -260,9 +261,17 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
 
   // Toggle item completion (strikethrough)
   const toggleComplete = async (item: ItemWithStore) => {
+    // If marking as complete, show animation first
+    if (!item.isCompleted) {
+      setCompletingItemId(item.id)
+      // Wait for animation to complete
+      await new Promise(resolve => setTimeout(resolve, 300))
+    }
+
     const updated = { ...item, isCompleted: !item.isCompleted, completedAt: item.isCompleted ? null : new Date() }
 
     setItems(prev => prev.map(i => i.id === item.id ? updated : i))
+    setCompletingItemId(null)
 
     await fetch(`/api/items/${item.id}`, {
       method: 'PATCH',
@@ -495,7 +504,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
           <>
             <ul className="items-list">
               {sortedItems.map(item => (
-                <li key={item.id} className={`item-row ${item.isCompleted ? 'completed' : ''}`}>
+                <li key={item.id} className={`item-row ${item.isCompleted ? 'completed' : ''} ${completingItemId === item.id ? 'completing' : ''}`}>
                   <div className="item-content">
                     <span
                       className={`item-text ${item.isCompleted ? 'completed' : ''}`}
