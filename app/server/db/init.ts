@@ -98,6 +98,22 @@ export async function initDatabase() {
           ALTER TABLE items ADD COLUMN IF NOT EXISTS store_id TEXT REFERENCES stores(id) ON DELETE SET NULL
         `)
       }
+
+      // Check if is_deleted column exists
+      const checkIsDeletedColumn = await db.execute(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'items' AND column_name = 'is_deleted'
+      `)
+
+      // Add is_deleted column if it doesn't exist
+      if (checkIsDeletedColumn.length === 0) {
+        console.log('📦 Adding is_deleted column...')
+        await db.execute(`
+          ALTER TABLE items ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE NOT NULL
+        `)
+        console.log('✅ is_deleted column added')
+      }
     }
 
     // Create indexes

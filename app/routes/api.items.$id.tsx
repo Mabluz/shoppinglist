@@ -3,7 +3,7 @@ import { json } from '@remix-run/node'
 import { db } from '~/server/db'
 import { items, stores } from '~/server/db/schema'
 import { verifySession } from '~/server/auth'
-import { eq } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 
 export const loader: LoaderFunction = async ({ request, params }) => {
   const cookieHeader = request.headers.get('Cookie')
@@ -70,8 +70,36 @@ export const action: ActionFunction = async ({ request, params }) => {
     }
 
     case 'DELETE': {
+      // Get the item's content
+      const item = existingItem[0]
+
+      // Count how many non-deleted items exist with the same content
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(items)
+        .where(and(
+          eq(items.content, item.content),
+          eq(items.isDeleted, false)
+        ))
+
+      const count = Number(countResult[0]?.count || 0)
+
+      // If this is the only item with this content, soft delete it
+      if (count <= 1) {
+        await db.update(items)
+          .set({
+            isDeleted: true,
+            isCompleted: true,
+            completedAt: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(items.id, id))
+        return json({ success: true, softDeleted: true })
+      }
+
+      // Otherwise, hard delete it
       await db.delete(items).where(eq(items.id, id))
-      return json({ success: true })
+      return json({ success: true, softDeleted: false })
     }
 
     default:

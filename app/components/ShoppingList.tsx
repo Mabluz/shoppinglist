@@ -18,7 +18,7 @@ interface ShoppingListProps {
   stores: Store[]
 }
 
-interface ItemHistory {
+interface Suggestion {
   content: string
   count: number
   lastUsed: string
@@ -36,7 +36,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
   const [searchTerm, setSearchTerm] = useState('')
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editStoreIdValue, setEditStoreIdValue] = useState('')
-  const [itemHistory, setItemHistory] = useState<ItemHistory[]>([])
+  const [allSuggestions, setAllSuggestions] = useState<Suggestion[]>([])
   const [isOnline, setIsOnline] = useState(true)
   const [lastSync, setLastSync] = useState<Date | null>(null)
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
@@ -128,35 +128,23 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     }
   }, [])
 
-  // Load item history from localStorage on mount
-  useEffect(() => {
+  // Fetch suggestions from API
+  const fetchSuggestions = useCallback(async () => {
     try {
-      const savedHistory = localStorage.getItem('shoppinglist-history')
-      if (savedHistory) {
-        const parsed = JSON.parse(savedHistory)
-        setItemHistory(parsed)
-      } else {
-        // Initialize history from current items
-        const history = items.map(item => ({
-          content: item.content,
-          count: 1,
-          lastUsed: new Date(item.createdAt).toISOString()
-        }))
-        setItemHistory(history)
+      const response = await fetch('/api/suggestions')
+      if (response.ok) {
+        const data = await response.json()
+        setAllSuggestions(data)
       }
     } catch (error) {
-      console.error('Failed to load history from localStorage:', error)
+      console.error('Failed to fetch suggestions:', error)
     }
   }, [])
 
-  // Save item history to localStorage whenever it changes
+  // Load suggestions on mount
   useEffect(() => {
-    try {
-      localStorage.setItem('shoppinglist-history', JSON.stringify(itemHistory))
-    } catch (error) {
-      console.error('Failed to save history to localStorage:', error)
-    }
-  }, [itemHistory])
+    fetchSuggestions()
+  }, [fetchSuggestions])
 
   // When filter changes, default the add-item store selector to the filtered store
   useEffect(() => {
@@ -165,27 +153,12 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     }
   }, [filterStoreId])
 
-  // Add item to history or update count
-  const addToHistory = useCallback((content: string) => {
-    setItemHistory(prev => {
-      const existing = prev.find(h => h.content.toLowerCase() === content.toLowerCase())
-      if (existing) {
-        return prev.map(h =>
-          h.content.toLowerCase() === content.toLowerCase()
-            ? { ...h, count: h.count + 1, lastUsed: new Date().toISOString() }
-            : h
-        )
-      } else {
-        return [...prev, { content, count: 1, lastUsed: new Date().toISOString() }]
-      }
-    })
-  }, [])
 
   // Get suggestions based on input from history (sorted by frequency and recency)
   const getSuggestions = useCallback((value: string) => {
     if (!value.trim()) return []
-    return itemHistory
-      .filter(h => h.content.toLowerCase().includes(value.toLowerCase()))
+    return allSuggestions
+      .filter(h => h.content.toLowerCase().startsWith(value.toLowerCase()))
       .sort((a, b) => {
         // Sort by count (descending), then by lastUsed (most recent first)
         if (b.count !== a.count) {
@@ -195,7 +168,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
       })
       .map(h => h.content)
       .slice(0, 5) // Limit to 5 suggestions
-  }, [itemHistory])
+  }, [allSuggestions])
 
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,15 +211,12 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
 
     setItems(prev => [newItem, ...prev])
 
-    // Add to history for future autocomplete
-    addToHistory(newItemContent.trim())
-
     setNewItemContent('')
-    setNewItemStoreId('')
+    setNewItemStoreId(filterStoreId)
     setSearchTerm('')
     setShowSuggestions(false)
 
-    // Sync to server (fire and forget)
+    // Sync to server and refresh suggestions
     await fetch('/api/items', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -259,6 +229,9 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
         createdAt: newItem.createdAt,
         updatedAt: newItem.updatedAt,
       }),
+    }).then(() => {
+      // Refresh suggestions after adding item
+      fetchSuggestions()
     }).catch(console.error)
   }
 
@@ -386,9 +359,12 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h1>Handleliste</h1>
-          <Link to="/stores" className="manage-stores-link">Butikker</Link>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <Link to="/suggestions" className="manage-stores-link">Forslag</Link>
+            <Link to="/stores" className="manage-stores-link">Butikker</Link>
+          </div>
         </div>
-        <p className="header-subtitle">Add items quickly, check them off</p>
+        <p className="header-subtitle">Legg til ting fort, for så å sjekke de av</p>
       </header>
 
       {/* Offline/Online Status Banner */}
@@ -494,7 +470,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
         {sortedItems.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon">🛒</div>
-            <p>ingen varer i listen</p>
+            <p>Ingen varer i listen</p>
           </div>
         ) : (
           <>

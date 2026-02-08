@@ -15,6 +15,7 @@ export const items = pgTable('items', {
   storeId: text('store_id').references(() => stores.id, { onDelete: 'set null' }),
   isCompleted: boolean('is_completed').default(false).notNull(),
   completedAt: timestamp('completed_at'),
+  isDeleted: boolean('is_deleted').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })

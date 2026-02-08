@@ -3,7 +3,7 @@ import { json } from '@remix-run/node'
 import { db } from '~/server/db'
 import { items, stores } from '~/server/db/schema'
 import { verifySession } from '~/server/auth'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, or, isNull } from 'drizzle-orm'
 
 export const loader: LoaderFunction = async ({ request }) => {
   const cookieHeader = request.headers.get('Cookie')
@@ -23,6 +23,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     })
     .from(items)
     .leftJoin(stores, eq(items.storeId, stores.id))
+    .where(or(eq(items.isDeleted, false), isNull(items.isDeleted)))
     .orderBy(desc(items.createdAt))
 
   return json(allItems)
