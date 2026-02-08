@@ -67,10 +67,9 @@ jobs:
             # Restart the application container
             docker compose -f docker-compose.yml up -d --build shoppinglist-app
 
-      - name: Purge Cloudflare cache (optional)
-        if: vars.CLOUDFLARE_ZONE_ID != '' && secrets.CLOUDFLARE_API_TOKEN != ''
+      - name: Purge Cloudflare cache
         run: |
-          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ vars.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/c45921a1ebf186899ddbf3373199b473/purge_cache" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             --data '{"purge_everything":true}'
