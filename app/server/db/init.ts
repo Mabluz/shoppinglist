@@ -114,6 +114,31 @@ export async function initDatabase() {
         `)
         console.log('✅ is_deleted column added')
       }
+
+      // Check if order column exists
+      const checkOrderColumn = await db.execute(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'items' AND column_name = 'order'
+      `)
+
+      // Add order column if it doesn't exist
+      if (checkOrderColumn.length === 0) {
+        console.log('📦 Adding order column...')
+        await db.execute(`
+          ALTER TABLE items ADD COLUMN "order" INTEGER DEFAULT 0 NOT NULL
+        `)
+        // Set order based on created_at for existing items
+        await db.execute(`
+          UPDATE items SET "order" = subquery.row_num
+          FROM (
+            SELECT id, ROW_NUMBER() OVER (ORDER BY created_at DESC) - 1 as row_num
+            FROM items
+          ) AS subquery
+          WHERE items.id = subquery.id
+        `)
+        console.log('✅ order column added')
+      }
     }
 
     // Create indexes
@@ -127,6 +152,10 @@ export async function initDatabase() {
 
     await db.execute(`
       CREATE INDEX IF NOT EXISTS idx_items_store_id ON items(store_id)
+    `)
+
+    await db.execute(`
+      CREATE INDEX IF NOT EXISTS idx_items_order ON items("order")
     `)
 
     console.log('✅ Database ready')

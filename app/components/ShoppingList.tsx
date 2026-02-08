@@ -9,6 +9,7 @@ interface ItemWithStore {
   storeName: string | null
   isCompleted: boolean
   completedAt: Date | null
+  order: number
   createdAt: Date
   updatedAt: Date
 }
@@ -43,7 +44,13 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
   const [showInstallPrompt, setShowInstallPrompt] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [completingItemId, setCompletingItemId] = useState<string | null>(null)
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null)
+  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
+  const [touchStartY, setTouchStartY] = useState<number | null>(null)
+  const [isDragMode, setIsDragMode] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const listRef = useRef<HTMLUListElement>(null)
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Monitor online/offline status
   useEffect(() => {
@@ -69,6 +76,21 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // Attach non-passive touch listeners for drag-and-drop on mobile
+  useEffect(() => {
+    const listElement = listRef.current
+    if (!listElement) return
+
+    const handleTouchMoveNative = (e: TouchEvent) => {
+      // Only prevent scrolling when in drag mode
+      if (!isDragMode) return
+      e.preventDefault()
+    }
+
+    listElement.addEventListener('touchmove', handleTouchMoveNative, { passive: false })
+    return () => listElement.removeEventListener('touchmove', handleTouchMoveNative)
+  }, [isDragMode])
 
   // Update last sync time whenever items change
   useEffect(() => {
@@ -210,6 +232,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     if (!newItemContent.trim()) return
 
     const selectedStore = stores.find(s => s.id === newItemStoreId)
+    // New items get order 0 to appear at the top
     const newItem: ItemWithStore = {
       id: crypto.randomUUID(),
       content: newItemContent.trim(),
@@ -217,11 +240,13 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
       storeName: selectedStore?.name || null,
       isCompleted: false,
       completedAt: null,
+      order: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
 
-    setItems(prev => [newItem, ...prev])
+    // Add new item and increment order of all existing items
+    setItems(prev => [newItem, ...prev.map(item => ({ ...item, order: item.order + 1 }))])
 
     setNewItemContent('')
     // Only reset store selection if there's an active filter
@@ -242,6 +267,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
         storeId: newItem.storeId,
         isCompleted: newItem.isCompleted,
         completedAt: newItem.completedAt,
+        order: newItem.order,
         createdAt: newItem.createdAt,
         updatedAt: newItem.updatedAt,
       }),
@@ -293,6 +319,171 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
       // If not completed, mark as completed first
       toggleComplete(item)
     }
+  }
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, itemId: string) => {
+    setDraggedItemId(itemId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent, itemId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverItemId(itemId)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverItemId(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, dropTargetId: string) => {
+    e.preventDefault()
+
+    if (!draggedItemId || draggedItemId === dropTargetId) {
+      setDraggedItemId(null)
+      setDragOverItemId(null)
+      return
+    }
+
+    // Reorder items
+    const draggedIndex = items.findIndex(i => i.id === draggedItemId)
+    const targetIndex = items.findIndex(i => i.id === dropTargetId)
+
+    if (draggedIndex === -1 || targetIndex === -1) return
+
+    const newItems = [...items]
+    const [draggedItem] = newItems.splice(draggedIndex, 1)
+    newItems.splice(targetIndex, 0, draggedItem)
+
+    // Assign new order values based on array position
+    const updatedItems = newItems.map((item, index) => ({
+      ...item,
+      order: index
+    }))
+
+    setItems(updatedItems)
+    setDraggedItemId(null)
+    setDragOverItemId(null)
+
+    // Sync new order to server
+    await fetch('/api/items/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        itemOrders: updatedItems.map(item => ({ id: item.id, order: item.order }))
+      })
+    }).catch(console.error)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedItemId(null)
+    setDragOverItemId(null)
+  }
+
+  // Touch event handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent, itemId: string) => {
+    const touchY = e.touches[0].clientY
+    setTouchStartY(touchY)
+
+    // Start long press timer (600ms)
+    longPressTimerRef.current = setTimeout(() => {
+      setDraggedItemId(itemId)
+      setIsDragMode(true)
+      // Vibrate if available (mobile feedback)
+      if (navigator.vibrate) {
+        navigator.vibrate(50)
+      }
+    }, 600)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null) return
+
+    // Cancel long press if moved too much before drag mode activated
+    if (!isDragMode && longPressTimerRef.current) {
+      const touchY = e.touches[0].clientY
+      const deltaY = Math.abs(touchY - touchStartY)
+
+      // Cancel if moved more than 10px
+      if (deltaY > 10) {
+        clearTimeout(longPressTimerRef.current)
+        longPressTimerRef.current = null
+        return
+      }
+    }
+
+    // Only handle drag logic if in drag mode
+    if (!isDragMode || !draggedItemId) return
+
+    // Find element at touch position
+    const element = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY)
+    const listItem = element?.closest('.item-row')
+
+    if (listItem) {
+      const itemId = listItem.getAttribute('data-item-id')
+      if (itemId && itemId !== draggedItemId) {
+        setDragOverItemId(itemId)
+      }
+    }
+  }
+
+  const handleTouchEnd = async (e: React.TouchEvent) => {
+    // Clear long press timer if still running
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+
+    // If not in drag mode, this was just a tap/scroll - do nothing
+    if (!isDragMode) {
+      setTouchStartY(null)
+      return
+    }
+
+    if (!draggedItemId || !dragOverItemId || draggedItemId === dragOverItemId) {
+      setDraggedItemId(null)
+      setDragOverItemId(null)
+      setTouchStartY(null)
+      setIsDragMode(false)
+      return
+    }
+
+    // Reorder items (same logic as handleDrop)
+    const draggedIndex = items.findIndex(i => i.id === draggedItemId)
+    const targetIndex = items.findIndex(i => i.id === dragOverItemId)
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedItemId(null)
+      setDragOverItemId(null)
+      setTouchStartY(null)
+      setIsDragMode(false)
+      return
+    }
+
+    const newItems = [...items]
+    const [draggedItem] = newItems.splice(draggedIndex, 1)
+    newItems.splice(targetIndex, 0, draggedItem)
+
+    const updatedItems = newItems.map((item, index) => ({
+      ...item,
+      order: index
+    }))
+
+    setItems(updatedItems)
+    setDraggedItemId(null)
+    setDragOverItemId(null)
+    setTouchStartY(null)
+    setIsDragMode(false)
+
+    // Sync to server
+    await fetch('/api/items/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        itemOrders: updatedItems.map(item => ({ id: item.id, order: item.order }))
+      })
+    }).catch(console.error)
   }
 
   // Request clear all completed
@@ -367,12 +558,14 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     ? items.filter(item => item.storeId === filterStoreId)
     : items
 
-  // Sort: incomplete first, then by creation date
+  // Sort: incomplete first (preserving user order), then completed items
   const sortedItems = [...displayedItems].sort((a, b) => {
-    if (a.isCompleted === b.isCompleted) {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    // Keep completed items at the bottom
+    if (a.isCompleted !== b.isCompleted) {
+      return a.isCompleted ? 1 : -1
     }
-    return a.isCompleted ? 1 : -1
+    // For items with the same completion status, preserve array order (no sorting)
+    return 0
   })
 
   const completedCount = items.filter(i => i.isCompleted).length
@@ -502,9 +695,27 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
           </div>
         ) : (
           <>
-            <ul className="items-list">
+            <ul ref={listRef} className="items-list">
               {sortedItems.map(item => (
-                <li key={item.id} className={`item-row ${item.isCompleted ? 'completed' : ''} ${completingItemId === item.id ? 'completing' : ''}`}>
+                <li
+                  key={item.id}
+                  data-item-id={item.id}
+                  className={`item-row ${item.isCompleted ? 'completed' : ''} ${completingItemId === item.id ? 'completing' : ''} ${draggedItemId === item.id ? 'dragging' : ''} ${dragOverItemId === item.id ? 'drag-over' : ''}`}
+                  draggable={!item.isCompleted}
+                  onDragStart={(e) => handleDragStart(e, item.id)}
+                  onDragOver={(e) => handleDragOver(e, item.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, item.id)}
+                  onDragEnd={handleDragEnd}
+                  onTouchStart={(e) => !item.isCompleted && handleTouchStart(e, item.id)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  {!item.isCompleted && (
+                    <span className="drag-handle" title="Dra for å endre rekkefølge">
+                      ⋮⋮
+                    </span>
+                  )}
                   <div className="item-content">
                     <span
                       className={`item-text ${item.isCompleted ? 'completed' : ''}`}

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core'
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod'
 import { z } from 'zod'
 
@@ -16,6 +16,7 @@ export const items = pgTable('items', {
   isCompleted: boolean('is_completed').default(false).notNull(),
   completedAt: timestamp('completed_at'),
   isDeleted: boolean('is_deleted').default(false).notNull(),
+  order: integer('order').default(0).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })

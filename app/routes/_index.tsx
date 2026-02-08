@@ -32,12 +32,13 @@ export const loader: LoaderFunction = async ({ request }) => {
       storeName: stores.name,
       isCompleted: items.isCompleted,
       completedAt: items.completedAt,
+      order: items.order,
       createdAt: items.createdAt,
       updatedAt: items.updatedAt,
     })
     .from(items)
     .leftJoin(stores, eq(items.storeId, stores.id))
-    .orderBy(desc(items.createdAt))
+    .orderBy(items.order)
 
   // Fetch all stores
   const allStores = await db.select().from(stores).orderBy(stores.name)

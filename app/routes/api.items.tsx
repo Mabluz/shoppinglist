@@ -18,13 +18,14 @@ export const loader: LoaderFunction = async ({ request }) => {
       storeName: stores.name,
       isCompleted: items.isCompleted,
       completedAt: items.completedAt,
+      order: items.order,
       createdAt: items.createdAt,
       updatedAt: items.updatedAt,
     })
     .from(items)
     .leftJoin(stores, eq(items.storeId, stores.id))
     .where(or(eq(items.isDeleted, false), isNull(items.isDeleted)))
-    .orderBy(desc(items.createdAt))
+    .orderBy(items.order)
 
   return json(allItems)
 }
@@ -42,6 +43,7 @@ export const action: ActionFunction = async ({ request }) => {
       storeId: body.storeId || null,
       isCompleted: body.isCompleted || false,
       completedAt: body.completedAt ? new Date(body.completedAt) : null,
+      order: body.order ?? 0,
       createdAt: body.createdAt ? new Date(body.createdAt) : new Date(),
       updatedAt: new Date(),
     }
@@ -49,6 +51,11 @@ export const action: ActionFunction = async ({ request }) => {
     if (!newItem.content) {
       throw new Response('Content is required', { status: 400 })
     }
+
+    // Increment order of all existing items to make room for new item at position 0
+    await db.execute(`
+      UPDATE items SET "order" = "order" + 1
+    `)
 
     await db.insert(items).values(newItem)
 

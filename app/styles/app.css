@@ -322,6 +322,12 @@ body {
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.2s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.item-row:not(.completed):active {
+  background: rgba(16, 185, 129, 0.05);
 }
 
 .item-row.completed {
@@ -330,6 +336,62 @@ body {
 
 .item-row.completing {
   animation: itemComplete 0.3s ease-out forwards;
+}
+
+.item-row.dragging {
+  opacity: 0.4;
+  transform: scale(0.95);
+  cursor: grabbing;
+  animation: dragActivate 0.3s ease-out;
+}
+
+@keyframes dragActivate {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.item-row.drag-over {
+  border: 2px dashed #10b981;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.item-row:not(.completed) {
+  cursor: grab;
+}
+
+.item-row:not(.completed):active {
+  cursor: grabbing;
+}
+
+.drag-handle {
+  color: #999;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+  padding: 0 0.25rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+  color: #666;
+}
+
+.item-row.dragging .drag-handle {
+  cursor: grabbing;
 }
 
 @keyframes itemComplete {
