@@ -64,7 +64,7 @@ jobs:
             npm run db:push || true
 
             # Restart the application container
-            docker compose -f docker-compose.yml up -d --build shoppinglist-app
+            docker compose -f docker-compose.yml up -d --build shoppinglist-backend
 
       - name: Purge Cloudflare cache
         run: |

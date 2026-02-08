@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  shoppinglist-backend:
+    build:
+      context: .
+    container_name: shoppinglist-backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://mariuszf:mablus00PostgreSQL@postgres-shared:5432/shoppinglist
+      APP_PASSWORD: "1554"
+      SESSION_SECRET: "shoppinglist-secret-key-change-in-production"
+    networks:
+      - webnet
+      - postgresnet
+
+networks:
+  webnet:
+    external: true
+  postgresnet:
+    external: true

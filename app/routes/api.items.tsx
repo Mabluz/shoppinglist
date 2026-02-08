@@ -1,5 +1,6 @@
 import type { ActionFunction, LoaderFunction } from '@remix-run/node'
 import { json } from '@remix-run/node'
+import crypto from 'crypto'
 import { db } from '~/server/db'
 import { items, stores } from '~/server/db/schema'
 import { verifySession } from '~/server/auth'
