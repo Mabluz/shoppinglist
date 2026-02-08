@@ -1,8 +1,8 @@
 import type { LoaderFunction } from '@remix-run/node'
 import { json } from '@remix-run/node'
 
-// Chrome DevTools looks for this file when debugging PWAs
-// Return an empty object to prevent 404 errors
+// Catch-all route for .well-known requests
+// Many tools and browsers probe for these files
 export const loader: LoaderFunction = async () => {
-  return json({})
+  return json({}, { status: 200 })
 }
