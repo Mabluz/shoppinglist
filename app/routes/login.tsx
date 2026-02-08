@@ -5,8 +5,8 @@ import { verifyPassword, createSession, sessionCookie } from '~/server/auth'
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Login - Shopping List' },
-    { name: 'description', content: 'Login to access shopping list' },
+    { title: 'Login - Handleliste' },
+    { name: 'description', content: 'Logg inn for å få tilgang til handlelisten' },
   ]
 }
 
@@ -42,7 +42,7 @@ export default function Login() {
   return (
     <div className="password-container">
       <div className="password-box">
-        <h1>Shopping List</h1>
+        <h1>Handleliste</h1>
         <p>Enter password to access</p>
 
         <Form method="post" className="password-form">

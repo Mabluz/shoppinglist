@@ -9,7 +9,7 @@ import { useState } from 'react'
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Butikker - Shopping List' },
+    { title: 'Butikker - Handleliste' },
     { name: 'description', content: 'Manage your stores' },
   ]
 }

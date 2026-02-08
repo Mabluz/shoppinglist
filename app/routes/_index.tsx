@@ -9,8 +9,8 @@ import { eq, desc, sql } from 'drizzle-orm'
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Shopping List' },
-    { name: 'description', content: 'Simple shopping list for your phone' },
+    { title: 'Handleliste' },
+    { name: 'description', content: 'Enkel handleliste for telefonen' },
     { viewport: 'width=device-width, initial-scale=1' },
   ]
 }

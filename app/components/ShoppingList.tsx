@@ -37,7 +37,74 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editStoreIdValue, setEditStoreIdValue] = useState('')
   const [itemHistory, setItemHistory] = useState<ItemHistory[]>([])
+  const [isOnline, setIsOnline] = useState(true)
+  const [lastSync, setLastSync] = useState<Date | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    setIsOnline(navigator.onLine)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Update last sync time whenever items change
+  useEffect(() => {
+    if (items.length > 0) {
+      setLastSync(new Date())
+    }
+  }, [items])
+
+  // PWA Install prompt
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+
+      // Check if already installed or dismissed
+      const dismissed = localStorage.getItem('pwa-install-dismissed')
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+
+      if (!dismissed && !isStandalone) {
+        setShowInstallPrompt(true)
+      }
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    }
+  }, [])
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return
+
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+
+    if (outcome === 'accepted') {
+      console.log('✅ User accepted PWA install')
+    }
+
+    setDeferredPrompt(null)
+    setShowInstallPrompt(false)
+  }
+
+  const handleDismissInstall = () => {
+    setShowInstallPrompt(false)
+    localStorage.setItem('pwa-install-dismissed', 'true')
+  }
 
   // Save to localStorage whenever items change
   useEffect(() => {
@@ -318,11 +385,47 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
       {/* Header */}
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1>Shopping List</h1>
+          <h1>Handleliste</h1>
           <Link to="/stores" className="manage-stores-link">Butikker</Link>
         </div>
         <p className="header-subtitle">Add items quickly, check them off</p>
       </header>
+
+      {/* Offline/Online Status Banner */}
+      {!isOnline && (
+        <div className="offline-banner">
+          <span className="offline-icon">📡</span>
+          <div className="offline-text">
+            <strong>Offline modus</strong>
+            <span className="offline-subtext">
+              {lastSync
+                ? `Viser data fra ${new Date(lastSync).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })}`
+                : 'Ingen tilkobling'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Install App Prompt */}
+      {showInstallPrompt && (
+        <div className="install-banner">
+          <div className="install-content">
+            <span className="install-icon">📱</span>
+            <div className="install-text">
+              <strong>Installer appen</strong>
+              <span className="install-subtext">Få rask tilgang og bruk offline</span>
+            </div>
+          </div>
+          <div className="install-actions">
+            <button className="install-button" onClick={handleInstallClick}>
+              Installer
+            </button>
+            <button className="dismiss-button" onClick={handleDismissInstall}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="content">
         {/* Store filter */}

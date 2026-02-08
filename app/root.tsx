@@ -11,12 +11,21 @@ import {
 import styles from './styles/app.css?url'
 
 export const meta: MetaFunction = () => [
-  { title: 'Shopping List' },
-  { name: 'description', content: 'Simple shopping list for your phone' },
-  { viewport: 'width=device-width, initial-scale=1' },
+  { title: 'Handleliste' },
+  { name: 'description', content: 'Enkel handleliste for telefonen' },
+  { viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no' },
+  { name: 'theme-color', content: '#0070f3' },
+  { name: 'apple-mobile-web-app-capable', content: 'yes' },
+  { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+  { name: 'apple-mobile-web-app-title', content: 'Handleliste' },
 ]
 
-export const links: LinksFunction = () => [{ rel: 'stylesheet', href: styles }]
+export const links: LinksFunction = () => [
+  { rel: 'stylesheet', href: styles },
+  { rel: 'manifest', href: '/manifest.json' },
+  { rel: 'icon', href: '/icon.svg', type: 'image/svg+xml' },
+  { rel: 'apple-touch-icon', href: '/icon-192.png' },
+]
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (

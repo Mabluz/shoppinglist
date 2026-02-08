@@ -1,6 +1,6 @@
-# Shopping List App
+# Handleliste App
 
-A simple, mobile-first shopping list application built with Remix, PostgreSQL, and Drizzle ORM.
+A simple, mobile-first Shopping list application built with Remix, PostgreSQL, and Drizzle ORM.
 
 ## Features
 

@@ -65,6 +65,131 @@ body {
   background: rgba(255, 255, 255, 0.3);
 }
 
+/* Offline banner */
+.offline-banner {
+  background: #ff9800;
+  color: white;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.offline-icon {
+  font-size: 1.5rem;
+}
+
+.offline-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.offline-text strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.offline-subtext {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+/* Install PWA banner */
+.install-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  animation: slideDown 0.3s ease-out;
+}
+
+.install-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.install-icon {
+  font-size: 1.5rem;
+}
+
+.install-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.install-text strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.install-subtext {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.install-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.install-button {
+  background: white;
+  color: #667eea;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.install-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dismiss-button {
+  background: transparent;
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.dismiss-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 /* Store selector */
 .store-section {
   background: white;
