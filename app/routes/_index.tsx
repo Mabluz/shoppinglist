@@ -33,6 +33,7 @@ export const loader: LoaderFunction = async ({ request }) => {
       isCompleted: items.isCompleted,
       completedAt: items.completedAt,
       order: items.order,
+      quantity: items.quantity,
       createdAt: items.createdAt,
       updatedAt: items.updatedAt,
     })
