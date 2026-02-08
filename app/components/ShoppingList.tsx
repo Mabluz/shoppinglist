@@ -10,6 +10,7 @@ interface ItemWithStore {
   isCompleted: boolean
   completedAt: Date | null
   order: number
+  quantity: number
   createdAt: Date
   updatedAt: Date
 }
@@ -244,6 +245,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
       isCompleted: false,
       completedAt: null,
       order: 0,
+      quantity: 1,
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -271,10 +273,21 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
         isCompleted: newItem.isCompleted,
         completedAt: newItem.completedAt,
         order: newItem.order,
+        quantity: newItem.quantity,
         createdAt: newItem.createdAt,
         updatedAt: newItem.updatedAt,
       }),
-    }).then(() => {
+    }).then(async (response) => {
+      // If the item already existed, update our local state with the server response
+      if (response.ok) {
+        const serverItem = await response.json()
+        if (serverItem.quantity > 1) {
+          // Item already existed and quantity was incremented
+          setItems(prev => prev.map(item =>
+            item.id === newItem.id ? { ...item, quantity: serverItem.quantity } : item
+          ))
+        }
+      }
       // Refresh suggestions after adding item
       fetchSuggestions()
     }).catch(console.error)
@@ -309,6 +322,41 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
         isCompleted: updated.isCompleted,
         completedAt: updated.completedAt,
       }),
+    }).catch(console.error)
+  }
+
+  // Increase quantity
+  const increaseQuantity = async (item: ItemWithStore) => {
+    const currentQuantity = item.quantity || 1
+    const newQuantity = currentQuantity + 1
+    const updated = { ...item, quantity: newQuantity, updatedAt: new Date() }
+
+    setItems(prev => prev.map(i => i.id === item.id ? updated : i))
+
+    await fetch(`/api/items/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity: newQuantity }),
+    }).catch(console.error)
+  }
+
+  // Decrease quantity
+  const decreaseQuantity = async (item: ItemWithStore) => {
+    const currentQuantity = item.quantity || 1
+    if (currentQuantity <= 1) {
+      // If quantity is 1, don't decrease further
+      return
+    }
+
+    const newQuantity = currentQuantity - 1
+    const updated = { ...item, quantity: newQuantity, updatedAt: new Date() }
+
+    setItems(prev => prev.map(i => i.id === item.id ? updated : i))
+
+    await fetch(`/api/items/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity: newQuantity }),
     }).catch(console.error)
   }
 
@@ -561,14 +609,14 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     ? items.filter(item => item.storeId === filterStoreId)
     : items
 
-  // Sort: incomplete first (preserving user order), then completed items
+  // Sort: incomplete first (sorted by name), then completed items (sorted by name)
   const sortedItems = [...displayedItems].sort((a, b) => {
     // Keep completed items at the bottom
     if (a.isCompleted !== b.isCompleted) {
       return a.isCompleted ? 1 : -1
     }
-    // For items with the same completion status, preserve array order (no sorting)
-    return 0
+    // Within the same completion status, sort alphabetically by content
+    return a.content.localeCompare(b.content, 'nb-NO')
   })
 
   const completedCount = items.filter(i => i.isCompleted).length
@@ -721,13 +769,18 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
                     </span>
                   )}
                   <div className="item-content">
-                    <span
-                      className={`item-text ${item.isCompleted ? 'completed' : ''}`}
-                      onClick={() => toggleComplete(item)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {item.content}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flex: 1 }}>
+                      <span
+                        className={`item-text ${item.isCompleted ? 'completed' : ''}`}
+                        onClick={() => toggleComplete(item)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {item.content}
+                      </span>
+                      {!item.isCompleted && (
+                        <span className="quantity-text">x {item.quantity || 1}</span>
+                      )}
+                    </div>
                     {editingItemId === item.id ? (
                       <div className="edit-store-form">
                         <select
@@ -754,6 +807,25 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
                       </span>
                     )}
                   </div>
+                  {!item.isCompleted && (
+                    <div className="quantity-controls">
+                      <button
+                        className="quantity-button"
+                        onClick={() => decreaseQuantity(item)}
+                        disabled={(item.quantity || 1) <= 1}
+                        title="Reduser antall"
+                      >
+                        −
+                      </button>
+                      <button
+                        className="quantity-button"
+                        onClick={() => increaseQuantity(item)}
+                        title="Øk antall"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
                   <button
                     className="delete-button"
                     onClick={() => handleDeleteClick(item)}

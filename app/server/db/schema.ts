@@ -17,6 +17,7 @@ export const items = pgTable('items', {
   completedAt: timestamp('completed_at'),
   isDeleted: boolean('is_deleted').default(false).notNull(),
   order: integer('order').default(0).notNull(),
+  quantity: integer('quantity').default(1).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })

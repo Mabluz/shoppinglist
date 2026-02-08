@@ -40,7 +40,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     })
     .from(items)
     .groupBy(items.content)
-    .orderBy(sql`count(*) DESC, max(${items.createdAt}) DESC`)
+    .orderBy(items.content)
 
   return json({ suggestions })
 }

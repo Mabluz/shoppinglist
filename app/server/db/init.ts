@@ -140,6 +140,22 @@ export async function initDatabase() {
         `)
         console.log('✅ order column added')
       }
+
+      // Check if quantity column exists
+      const checkQuantityColumn = await db.execute(`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'items' AND column_name = 'quantity'
+      `)
+
+      // Add quantity column if it doesn't exist
+      if (checkQuantityColumn.length === 0) {
+        console.log('📦 Adding quantity column...')
+        await db.execute(`
+          ALTER TABLE items ADD COLUMN quantity INTEGER DEFAULT 1 NOT NULL
+        `)
+        console.log('✅ quantity column added')
+      }
     }
 
     // Create indexes

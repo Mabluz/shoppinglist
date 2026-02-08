@@ -48,6 +48,10 @@ export const action: ActionFunction = async ({ request, params }) => {
         updated.storeId = body.storeId || null
       }
 
+      if (body.quantity !== undefined) {
+        updated.quantity = Math.max(1, body.quantity)
+      }
+
       await db.update(items).set(updated).where(eq(items.id, id))
 
       const result = await db
