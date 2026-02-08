@@ -638,8 +638,8 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
         </div>
 
         {/* Add item form */}
-        <div style={{ position: 'relative' }}>
-          <div className="add-item-form">
+        <div className="add-item-form">
+          <div className="input-wrapper">
             <input
               ref={inputRef}
               type="text"
@@ -654,37 +654,38 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               autoComplete="off"
             />
-            <select
-              id="new-item-store"
-              name="newItemStore"
-              className="add-item-input store-input-inline"
-              value={newItemStoreId}
-              onChange={(e) => setNewItemStoreId(e.target.value)}
-            >
-              <option value="">Ingen butikk</option>
-              {stores.map(store => (
-                <option key={store.id} value={store.id}>{store.name}</option>
-              ))}
-            </select>
-            <button className="add-item-button" onClick={handleAddItem} disabled={!newItemContent.trim()}>
-              Legg til
-            </button>
+
+            {/* Suggestions dropdown */}
+            {showSuggestions && (
+              <div className="suggestions">
+                {suggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    className="suggestion-item"
+                    onClick={() => selectSuggestion(suggestion)}
+                  >
+                    {suggestion}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Suggestions dropdown */}
-          {showSuggestions && (
-            <div className="suggestions">
-              {suggestions.map((suggestion, index) => (
-                <div
-                  key={index}
-                  className="suggestion-item"
-                  onClick={() => selectSuggestion(suggestion)}
-                >
-                  {suggestion}
-                </div>
-              ))}
-            </div>
-          )}
+          <select
+            id="new-item-store"
+            name="newItemStore"
+            className="add-item-input store-input-inline"
+            value={newItemStoreId}
+            onChange={(e) => setNewItemStoreId(e.target.value)}
+          >
+            <option value="">Ingen butikk</option>
+            {stores.map(store => (
+              <option key={store.id} value={store.id}>{store.name}</option>
+            ))}
+          </select>
+          <button className="add-item-button" onClick={handleAddItem} disabled={!newItemContent.trim()}>
+            Legg til
+          </button>
         </div>
 
         {/* Items list */}
