@@ -1,0 +1,76 @@
+name: Deploy Shopping List
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'README.md'
+      - '.github/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          cp -r build deploy/
+          cp package.json package-lock.json deploy/
+          cp -r public deploy/
+          tar -czf deploy.tar.gz -C deploy .
+
+      - name: Upload application via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "deploy.tar.gz"
+          target: "/tmp"
+
+      - name: Deploy and restart application
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.APP_PATH }}
+
+            # Extract new build
+            tar -xzf /tmp/deploy.tar.gz -C .
+            rm /tmp/deploy.tar.gz
+
+            # Install production dependencies
+            npm ci --omit=dev
+
+            # Run database migrations if needed
+            npm run db:push || true
+
+            # Restart the application container
+            docker compose -f docker-compose.yml up -d --build shoppinglist-app
+
+      - name: Purge Cloudflare cache (optional)
+        if: vars.CLOUDFLARE_ZONE_ID != '' && secrets.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ vars.CLOUDFLARE_ZONE_ID }}/purge_cache" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"purge_everything":true}'
