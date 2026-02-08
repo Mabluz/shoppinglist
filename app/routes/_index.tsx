@@ -5,7 +5,7 @@ import ShoppingList from '~/components/ShoppingList'
 import { verifySession } from '~/server/auth'
 import { db } from '~/server/db'
 import { items, stores } from '~/server/db/schema'
-import { eq, desc, sql } from 'drizzle-orm'
+import { eq, desc, sql, or, isNull } from 'drizzle-orm'
 
 export const meta: MetaFunction = () => {
   return [
@@ -23,7 +23,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     return redirect('/login')
   }
 
-  // Fetch all items with store information
+  // Fetch all items with store information (excluding deleted items)
   const allItems = await db
     .select({
       id: items.id,
@@ -38,6 +38,7 @@ export const loader: LoaderFunction = async ({ request }) => {
     })
     .from(items)
     .leftJoin(stores, eq(items.storeId, stores.id))
+    .where(or(eq(items.isDeleted, false), isNull(items.isDeleted)))
     .orderBy(items.order)
 
   // Fetch all stores

@@ -140,7 +140,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     localStorage.setItem('pwa-install-dismissed', 'true')
   }
 
-  // Save to localStorage whenever items change
+  // Save to localStorage whenever items change (for offline support)
   useEffect(() => {
     try {
       localStorage.setItem('shoppinglist-items', JSON.stringify(items))
@@ -149,18 +149,21 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     }
   }, [items])
 
-  // Load from localStorage on mount
+  // Load from localStorage ONLY as fallback when server data is unavailable
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('shoppinglist-items')
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        setItems(parsed)
+    // Only load from localStorage if we didn't get data from the server
+    if (initialItems.length === 0) {
+      try {
+        const saved = localStorage.getItem('shoppinglist-items')
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          setItems(parsed)
+        }
+      } catch (error) {
+        console.error('Failed to load from localStorage:', error)
       }
-    } catch (error) {
-      console.error('Failed to load from localStorage:', error)
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch suggestions from API
   const fetchSuggestions = useCallback(async () => {
