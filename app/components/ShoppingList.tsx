@@ -609,14 +609,14 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     ? items.filter(item => item.storeId === filterStoreId)
     : items
 
-  // Sort: incomplete first (sorted by name), then completed items (sorted by name)
+  // Sort: incomplete first (by drag-and-drop order), then completed items (by order)
   const sortedItems = [...displayedItems].sort((a, b) => {
     // Keep completed items at the bottom
     if (a.isCompleted !== b.isCompleted) {
       return a.isCompleted ? 1 : -1
     }
-    // Within the same completion status, sort alphabetically by content
-    return a.content.localeCompare(b.content, 'nb-NO')
+    // Within the same completion status, preserve drag-and-drop order
+    return a.order - b.order
   })
 
   const completedCount = items.filter(i => i.isCompleted).length
