@@ -799,7 +799,7 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
                       </div>
                     ) : (
                       <span
-                        className="item-store"
+                        className={`item-store${!item.storeName ? ' no-store' : ''}`}
                         onClick={() => startEditingStore(item)}
                         title="Klikk for å endre butikk"
                       >

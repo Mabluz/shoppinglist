@@ -447,6 +447,16 @@ body {
   background: #e0e0e0;
 }
 
+.item-store.no-store {
+  background: #ffe0e0;
+  color: #c0392b;
+  border: 1px dashed #e8a0a0;
+}
+
+.item-store.no-store:hover {
+  background: #ffd0d0;
+}
+
 /* Quantity text */
 .quantity-text {
   color: #0070f3;
