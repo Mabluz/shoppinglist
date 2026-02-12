@@ -26,8 +26,9 @@ interface Suggestion {
   lastUsed: string
 }
 
-export default function ShoppingList({ initialItems, stores }: ShoppingListProps) {
+export default function ShoppingList({ initialItems, stores: initialStores }: ShoppingListProps) {
   const [items, setItems] = useState<ItemWithStore[]>(initialItems)
+  const [stores, setStores] = useState<Store[]>(initialStores)
   const [newItemContent, setNewItemContent] = useState('')
   const [newItemStoreId, setNewItemStoreId] = useState('')
   const [filterStoreId, setFilterStoreId] = useState('')
@@ -93,12 +94,60 @@ export default function ShoppingList({ initialItems, stores }: ShoppingListProps
     return () => listElement.removeEventListener('touchmove', handleTouchMoveNative)
   }, [isDragMode])
 
+  // Fetch fresh data from server
+  const fetchFreshData = useCallback(async () => {
+    try {
+      const [itemsResponse, storesResponse] = await Promise.all([
+        fetch('/api/items'),
+        fetch('/api/stores')
+      ])
+
+      if (itemsResponse.ok) {
+        const freshItems = await itemsResponse.json()
+        setItems(freshItems)
+        setLastSync(new Date())
+      }
+
+      if (storesResponse.ok) {
+        const freshStores = await storesResponse.json()
+        setStores(freshStores)
+      }
+    } catch (error) {
+      console.error('Failed to fetch fresh data:', error)
+    }
+  }, [])
+
   // Update last sync time whenever items change
   useEffect(() => {
     if (items.length > 0) {
       setLastSync(new Date())
     }
   }, [items])
+
+  // Fetch fresh data on mount and when app comes into focus
+  useEffect(() => {
+    // Fetch on mount
+    fetchFreshData()
+
+    // Fetch when app comes back into focus
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchFreshData()
+      }
+    }
+
+    const handleFocus = () => {
+      fetchFreshData()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [fetchFreshData])
 
   // PWA Install prompt
   useEffect(() => {
