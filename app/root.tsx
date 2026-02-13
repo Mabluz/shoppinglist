@@ -20,11 +20,11 @@ export const meta: MetaFunction = () => [
 
 export const links: LinksFunction = () => [
   { rel: 'stylesheet', href: styles },
-  { rel: 'manifest', href: '/manifest.json' },
+  { rel: 'manifest', href: '/manifest-v2.json' },
   { rel: 'icon', href: '/favicon.ico', sizes: '32x32' },
-  { rel: 'icon', href: '/icon.svg', type: 'image/svg+xml' },
-  { rel: 'icon', href: '/icon-192.png', type: 'image/png', sizes: '192x192' },
-  { rel: 'apple-touch-icon', href: '/icon-192.png' },
+  { rel: 'icon', href: '/icon-v2.svg', type: 'image/svg+xml' },
+  { rel: 'icon', href: '/icon-192-v2.png', type: 'image/png', sizes: '192x192' },
+  { rel: 'apple-touch-icon', href: '/icon-192-v2.png' },
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {

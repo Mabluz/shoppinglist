@@ -1,8 +1,8 @@
 const CACHE_NAME = 'shoppinglist-v2'
 const ASSETS_TO_CACHE = [
   '/',
-  '/manifest.json',
-  '/icon.svg',
+  '/manifest-v2.json',
+  '/icon-v2.svg',
 ]
 
 // Install event - cache assets
